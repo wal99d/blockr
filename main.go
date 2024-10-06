@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/wal99d/blockr/node"
 	"github.com/wal99d/blockr/proto"
@@ -11,18 +10,33 @@ import (
 )
 
 func main() {
-	node := node.NewNode()
+	// node := node.NewNode()
+	//
+	// go func() {
+	//
+	// 	for {
+	//
+	// 		time.Sleep(2 * time.Second)
+	// 		makeTransaction()
+	// 	}
+	// }()
+	//
 
-	go func() {
+	makeNode(":3000", []string{})
+	makeNode(":4000", []string{":3000"})
+	select {}
+}
 
-		for {
+func makeNode(listenAddr string, bootstrapNodes []string) *node.Node {
 
-			time.Sleep(2 * time.Second)
-			makeTransaction()
+	n := node.NewNode()
+	go n.Start(listenAddr)
+	if len(bootstrapNodes) > 0 {
+		if err := n.BootstrapNetwork(bootstrapNodes); err != nil {
+			log.Fatal(err)
 		}
-	}()
-
-	log.Fatal(node.Start(":3000"))
+	}
+	return n
 }
 
 func makeTransaction() {
@@ -36,8 +50,9 @@ func makeTransaction() {
 
 	v := &proto.Version{
 
-		Version: "blockr-0.1",
-		Height:  1,
+		Version:    "blockr-0.1",
+		Height:     1,
+		ListenAddr: ":4000",
 	}
 
 	_, err = c.Handshake(context.TODO(), v)
