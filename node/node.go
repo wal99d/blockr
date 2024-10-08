@@ -39,11 +39,10 @@ func (n *Node) addPeer(c proto.NodeClient, v *proto.Version) {
 	// handle the logic where we decide to accept or drop
 	// the incoming conn
 	n.peers[c] = v
-	for _, addr := range v.PeerList {
-		if addr != n.listenAddr {
-			fmt.Printf("[%s] need to connect with %s\n", n.listenAddr, addr)
-		}
+	// connect to all peers in the received list of peers.
+	if len(v.PeerList) > 0 {
 
+		go n.bootstrapNetwork(v.PeerList)
 	}
 	n.logger.Debugw("new peer successfully connected",
 		"we", n.listenAddr,
@@ -92,7 +91,11 @@ func (n *Node) Handshake(ctx context.Context, version *proto.Version) (*proto.Ve
 func (n *Node) bootstrapNetwork(addrs []string) error {
 
 	for _, addr := range addrs {
+		if !n.canConnectWith(addr) {
 
+			continue
+		}
+		n.logger.Debugw("dailing remote node", "we", n.listenAddr, "remote", addr)
 		c, v, err := n.dialRemoteNode(addr)
 		if err != nil {
 			return err
@@ -152,4 +155,19 @@ func (n *Node) dialRemoteNode(addr string) (proto.NodeClient, *proto.Version, er
 		return nil, nil, err
 	}
 	return c, v, nil
+}
+
+func (n *Node) canConnectWith(addr string) bool {
+	if n.listenAddr == addr {
+		return false
+	}
+	connectedPeers := n.getPeerList()
+
+	for _, connectedAddr := range connectedPeers {
+
+		if addr == connectedAddr {
+			return false
+		}
+	}
+	return true
 }
